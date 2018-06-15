@@ -1,32 +1,18 @@
+#!/usr/bin/env groovy
+
 node {
-    wrap([$class: 'AnsiColorBuildWrapper', 'colorMapName': 'XTerm']) {
+    stage 'Checkout'
+        checkout scm
 
-        stage('Init variables') {
-            env.JAVA_OPTS="-Djava.net.preferIPv4Stack=true"
-            env.SBT_OPTS="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -Xmx4G -XX:MaxPermSize=4G"
+    stage 'Clean'
+        bat 'gradlew clean'
 
-            env.BUILD_OPTS="" // "-Dscala.version=2.10.5 -Dspark.version=2.0.1"
-        }
+    stage 'Test'
+        bat 'gradlew test'
 
-        stage('SCM') {
-            timeout(time: 2, unit: 'MINUTES') {
-                retry(3) {
-                    checkout scm
-                }
-            }
-            step([$class: 'GitHubSetCommitStatusBuilder'])
-        }
-
-        stage('Clean') {
-            sh "/usr/bin/sbt clean"
-        }
-
-        stage('Test 2.11'){
-            sh "/usr/bin/sbt -Dspark.version=2.0.2 -Dscala.version=2.11.8 test"
-        }
-
-        stage('Test 2.11 spark 2.1.1'){
-            sh "/usr/bin/sbt -Dspark.version=2.1.1 -Dscala.version=2.11.8 test"
-        }
+    stage('Publish')
+    {
+        junit 'build/test-results/**/*.xml'
+        publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'build/reports/tests/test', reportFiles: 'index.html', reportName: 'HTML Report', reportTitles: ''])
     }
 }
